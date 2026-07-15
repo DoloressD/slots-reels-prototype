@@ -2,7 +2,7 @@
 
 A lightweight, config-driven web engine for rapidly prototyping slot-style reel mechanics. Built as a design + prototyping exercise focused on flexible architecture: swap reel size, symbols, paylines, and feature triggers entirely through a JSON config — no code changes required.
 
-**[Play the live demo →](https://YOUR-USERNAME.github.io/reels-prototype-engine/)**
+**[Play the live demo →](https://DoloressD.github.io/reels-prototype-engine/)**
 
 ## What it does
 
