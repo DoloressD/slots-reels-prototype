@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reels Prototype Engine</title>
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #16161f;
+    --surface2: #1e1e2e;
+    --border: #2a2a3d;
+    --accent: #c8a84b;
+    --accent2: #7b5ea7;
+    --win: #4bbd8c;
+    --scatter: #e05c5c;
+    --text: #e8e4d9;
+    --text-muted: #6b6880;
+    --reel-bg: #0a0a10;
+    --symbol-size: 80px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .header h1 {
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .header .game-name {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Config selector ── */
+  .config-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .config-bar label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .config-bar select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* ── Machine frame ── */
+  .machine {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 0 60px rgba(200,168,75,0.06);
+    max-width: 700px;
+    width: 100%;
+  }
+
+  /* ── Reel window ── */
+  .reel-window {
+    background: var(--reel-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  /* Win line overlay */
+  .win-lines-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ── Single reel ── */
+  .reel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    position: relative;
+  }
+
+  .symbol-cell {
+    height: var(--symbol-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--surface2);
+    font-size: 34px;
+    transition: background 0.2s;
+    position: relative;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  .symbol-cell.spinning {
+    animation: blur-spin 0.08s linear infinite;
+  }
+
+  .symbol-cell.win-highlight {
+    background: rgba(75, 189, 140, 0.18);
+    box-shadow: inset 0 0 0 2px var(--win);
+    animation: pulse-win 0.6s ease-in-out infinite alternate;
+  }
+
+  .symbol-cell.wild {
+    background: rgba(123, 94, 167, 0.2);
+  }
+
+  .symbol-cell.scatter-hit {
+    background: rgba(224, 92, 92, 0.2);
+    box-shadow: inset 0 0 0 2px var(--scatter);
+  }
+
+  @keyframes blur-spin {
+    0%   { transform: translateY(-4px); opacity: 0.6; }
+    50%  { transform: translateY(4px); opacity: 0.9; }
+    100% { transform: translateY(-4px); opacity: 0.6; }
+  }
+
+  @keyframes pulse-win {
+    from { box-shadow: inset 0 0 0 2px var(--win), 0 0 8px rgba(75,189,140,0.3); }
+    to   { box-shadow: inset 0 0 0 2px var(--win), 0 0 20px rgba(75,189,140,0.6); }
+  }
+
+  /* ── Info row ── */
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 0 4px;
+  }
+
+  .win-display {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--win);
+    min-height: 24px;
+    text-align: center;
+    transition: opacity 0.3s;
+  }
+
+  .win-display.hidden { opacity: 0; }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .btn {
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+
+  .btn-spin {
+    background: var(--accent);
+    color: #0d0d14;
+    font-size: 15px;
+    padding: 14px 48px;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    box-shadow: 0 4px 20px rgba(200,168,75,0.25);
+  }
+
+  .btn-spin:hover:not(:disabled) {
+    background: #dbbf5e;
+    box-shadow: 0 6px 28px rgba(200,168,75,0.4);
+    transform: translateY(-1px);
+  }
+
+  .btn-spin:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { color: var(--text); border-color: var(--accent2); }
+
+  /* ── Paylines legend ── */
+  .paylines-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .pl-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+
+  /* ── Debug panel ── */
+  .debug-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    user-select: none;
+  }
+
+  .debug-toggle:hover { color: var(--text); }
+
+  .debug-panel {
+    background: var(--reel-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 12px;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .debug-panel.open { display: block; }
+
+  .debug-panel h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  .debug-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .debug-stat { color: var(--text-muted); }
+  .debug-stat span { color: var(--text); font-weight: 600; }
+
+  .debug-force {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .debug-force label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 11px;
+  }
+
+  .debug-force input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 12px;
+    width: 100%;
+  }
+
+  .debug-result {
+    margin-top: 10px;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: pre;
+    overflow-x: auto;
+    background: var(--surface2);
+    padding: 8px;
+    border-radius: 5px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  /* ── Feature toast ── */
+  .feature-toast {
+    position: fixed;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--accent);
+    color: #0d0d14;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    padding: 14px 32px;
+    border-radius: 50px;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 100;
+    text-transform: uppercase;
+  }
+
+  .feature-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Symbol key ── */
+  .symbol-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  .sym-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 9px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .sym-badge .sym-icon { font-size: 16px; }
+  .sym-badge.is-wild { border-color: var(--accent2); color: #a882d8; }
+  .sym-badge.is-scatter { border-color: var(--scatter); color: var(--scatter); }
+
+  /* ── Simulation ── */
+  .sim-section {
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .sim-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .sim-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .sim-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+  .sim-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sim-results {
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border-radius: 5px;
+    padding: 10px 12px;
+    line-height: 1.8;
+  }
+  .sim-results .sim-stat { color: var(--text); font-weight: 600; }
+  .sim-results .sim-label { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="feature-toast" id="featureToast"></div>
+
+<div class="header">
+  <div class="h1">Prototype Engine v0.1</div>
+  <div class="game-name" id="gameTitle">—</div>
+</div>
+
+<div class="config-bar">
+  <label>Config</label>
+  <select id="configSelect" onchange="loadConfig()">
+    <option value="classic3x3">Classic 3×3</option>
+    <option value="standard5x3" selected>Standard 5×3</option>
+    <option value="wide6x4">Wide 6×4</option>
+  </select>
+</div>
+
+<div class="machine">
+  <div class="reel-window" id="reelWindow">
+    <svg class="win-lines-overlay" id="winLinesOverlay"></svg>
+  </div>
+
+  <div class="info-row">
+    <div id="spinCounter" style="color:var(--text-muted);font-size:12px;">Spins: 0</div>
+    <div class="win-display hidden" id="winDisplay"></div>
+    <div id="winRate" style="color:var(--text-muted);font-size:12px;">Win rate: —</div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-spin" id="spinBtn" onclick="spin()">SPIN</button>
+  </div>
+
+  <div class="symbol-key" id="symbolKey"></div>
+
+  <div class="debug-toggle" onclick="toggleDebug()">
+    <span id="debugArrow">▶</span> Debug Panel
+  </div>
+  <div class="debug-panel" id="debugPanel">
+    <h3>Debug</h3>
+    <div class="debug-grid">
+      <div class="debug-stat">Spins: <span id="dbSpins">0</span></div>
+      <div class="debug-stat">Wins: <span id="dbWins">0</span></div>
+      <div class="debug-stat">Feature fires: <span id="dbFeatures">0</span></div>
+      <div class="debug-stat">Config: <span id="dbConfig">—</span></div>
+    </div>
+    <div class="debug-force">
+      <label>Force result — one row per segment, slash-separated (top row first, left to right)</label>
+      <input type="text" id="forceInput" placeholder="e.g. A,A,A / B,B,B / C,C,C  (top row first — leave blank for random)">
+    </div>
+    <div class="debug-result" id="debugResult">— last result will appear here —</div>
+
+    <div class="sim-section">
+      <h3>Simulation</h3>
+      <div class="sim-controls">
+        <span style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Run</span>
+        <button class="btn btn-secondary sim-btn" onclick="runSimulation(100)">100</button>
+        <button class="btn btn-secondary sim-btn" onclick="runSimulation(1000)">1,000</button>
+        <button class="btn btn-secondary sim-btn" onclick="runSimulation(10000)">10,000</button>
+        <span style="color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">spins</span>
+      </div>
+      <div class="sim-results" id="simResults">— run a simulation to see math stats —</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG DEFINITIONS
+// ─────────────────────────────────────────────
+
+const CONFIGS = {
+  classic3x3: {
+    name: "Classic 3×3",
+    reelCount: 3,
+    rowCount: 3,
+    spinBehavior: { mode: "staggered", durationMs: 500, staggerDelayMs: 180 },
+    symbols: [
+      { id:"A", label:"🍒", weight:8 },
+      { id:"B", label:"🍋", weight:7 },
+      { id:"C", label:"🔔", weight:5 },
+      { id:"D", label:"⭐", weight:3 },
+      { id:"W", label:"🃏", weight:1, isWild:true },
+      { id:"S", label:"7️⃣",  weight:1, isScatter:true }
+    ],
+    reelStrips: [
+      ["A","B","A","C","B","A","D","B","A","W","A","B","S"],
+      ["B","A","C","A","B","D","A","C","B","A","W","B","S"],
+      ["A","C","B","A","D","B","C","A","B","S","A","W","C"]
+    ],
+    paylines: [
+      [1,1,1],
+      [0,0,0],
+      [2,2,2],
+      [0,1,2],
+      [2,1,0]
+    ],
+    paytable: {
+      "A":[0,0,10], "B":[0,0,10], "C":[0,0,20],
+      "D":[0,0,50], "W":[0,0,100], "S":[0,0,0]
+    },
+    featureTriggers: [
+      { type:"scatter", symbol:"S", count:3, fires:"bonus", params:{ msg:"BONUS TRIGGERED — 5 Free Spins!" } }
+    ]
+  },
+
+  standard5x3: {
+    name: "Standard 5×3",
+    reelCount: 5,
+    rowCount: 3,
+    spinBehavior: { mode: "staggered", durationMs: 600, staggerDelayMs: 120 },
+    symbols: [
+      { id:"A", label:"♠", weight:6 },
+      { id:"B", label:"♥", weight:6 },
+      { id:"C", label:"♦", weight:5 },
+      { id:"D", label:"♣", weight:5 },
+      { id:"E", label:"★", weight:3 },
+      { id:"W", label:"🃏", weight:1, isWild:true },
+      { id:"S", label:"⚡", weight:1, isScatter:true }
+    ],
+    reelStrips: [
+      ["A","B","A","C","A","B","A","D","B","A","B","C","A","B","W","A","B","A","S","B"],
+      ["B","A","B","C","B","A","B","D","A","B","A","C","B","A","E","B","A","W","B","S"],
+      ["A","B","A","B","C","A","B","A","B","D","A","B","A","B","C","A","S","B","A","B"],
+      ["B","A","B","A","C","B","A","B","A","D","B","A","C","B","A","W","B","A","B","E"],
+      ["A","B","A","B","A","C","B","A","B","A","D","B","A","B","C","A","B","S","A","B"]
+    ],
+    paylines: [
+      [1,1,1,1,1],
+      [0,0,0,0,0],
+      [2,2,2,2,2],
+      [0,1,2,1,0],
+      [2,1,0,1,2]
+    ],
+    paytable: {
+      "A":[0,0,5,20,50], "B":[0,0,5,20,50], "C":[0,0,8,30,80],
+      "D":[0,0,8,30,80], "E":[0,0,15,60,150], "W":[0,0,25,100,500]
+    },
+    featureTriggers: [
+      { type:"scatter", symbol:"S", count:3, fires:"freeSpins", params:{ count:8, msg:"FREE SPINS ×8!" } }
+    ]
+  },
+
+  wide6x4: {
+    name: "Wide 6×4",
+    reelCount: 6,
+    rowCount: 4,
+    spinBehavior: { mode: "staggered", durationMs: 700, staggerDelayMs: 100 },
+    symbols: [
+      { id:"A", label:"🌙", weight:7 },
+      { id:"B", label:"☀️", weight:6 },
+      { id:"C", label:"💎", weight:5 },
+      { id:"D", label:"🔮", weight:4 },
+      { id:"E", label:"⚗️", weight:3 },
+      { id:"F", label:"🌟", weight:2 },
+      { id:"W", label:"🃏", weight:1, isWild:true },
+      { id:"S", label:"🌀", weight:1, isScatter:true }
+    ],
+    reelStrips: [
+      ["A","B","A","C","B","D","A","B","W","A","C","E","B","S","F"],
+      ["B","A","C","D","B","A","E","C","B","A","D","W","C","B","S"],
+      ["C","A","B","D","C","A","F","B","C","S","A","B","W","D","E"],
+      ["D","B","C","A","D","B","A","E","C","D","B","W","A","S","F"],
+      ["A","C","D","B","A","F","D","C","A","E","B","S","D","W","C"],
+      ["B","D","A","C","B","D","E","A","C","W","B","D","S","A","F"]
+    ],
+    paylines: [
+      [1,1,1,1,1,1],
+      [0,0,0,0,0,0],
+      [3,3,3,3,3,3],
+      [0,1,2,3,2,1],
+      [3,2,1,0,1,2]
+    ],
+    paytable: {
+      "A":[0,0,3,10,30,80], "B":[0,0,3,10,30,80], "C":[0,0,5,15,50,120],
+      "D":[0,0,5,15,50,120], "E":[0,0,8,25,80,200], "F":[0,0,12,40,120,300],
+      "W":[0,0,20,80,250,1000]
+    },
+    featureTriggers: [
+      { type:"scatter", symbol:"S", count:3, fires:"freeSpins", params:{ count:10, msg:"FREE SPINS ×10!" } }
+    ]
+  }
+};
+
+// ─────────────────────────────────────────────
+// ENGINE STATE
+// ─────────────────────────────────────────────
+
+let config = null;
+let currentGrid = [];       // [reelIndex][rowIndex] = symbolId
+let isSpinning = false;
+let spinCount = 0;
+let winCount = 0;
+let featureCount = 0;
+let spinTimers = [];
+
+// ─────────────────────────────────────────────
+// MATH LAYER — pure functions, no DOM access
+// ─────────────────────────────────────────────
+
+function getSymbolById(id) {
+  return config.symbols.find(s => s.id === id) || null;
+}
+
+function sampleReelStrip(stripIndex) {
+  const strip = config.reelStrips[stripIndex];
+  const idx = Math.floor(Math.random() * strip.length);
+  const results = [];
+  for (let r = 0; r < config.rowCount; r++) {
+    results.push(strip[(idx + r) % strip.length]);
+  }
+  return results;
+}
+
+function generateResult(forceGrid = null) {
+  if (forceGrid) return forceGrid;
+  const grid = [];
+  for (let i = 0; i < config.reelCount; i++) {
+    grid.push(sampleReelStrip(i));
+  }
+  return grid;
+}
+
+function isMatchOrWild(symId, targetId) {
+  const sym = getSymbolById(symId);
+  return symId === targetId || (sym && sym.isWild);
+}
+
+function evaluatePaylines(grid) {
+  const wins = [];
+  for (let p = 0; p < config.paylines.length; p++) {
+    const line = config.paylines[p];
+
+    // Collect all symbols on this payline
+    const lineSymbols = line.map((row, r) => grid[r][row]);
+
+    // Find anchor: first non-wild, non-scatter symbol
+    let anchor = null;
+    for (const symId of lineSymbols) {
+      const sym = getSymbolById(symId);
+      if (sym && !sym.isWild && !sym.isScatter) { anchor = symId; break; }
+    }
+    if (!anchor) continue;
+
+    // All positions must match anchor or be wild
+    const allMatch = lineSymbols.every(symId => isMatchOrWild(symId, anchor));
+    if (!allMatch) continue;
+
+    const pay = config.paytable[anchor];
+    const count = config.reelCount;
+    if (pay && pay[count - 1] && pay[count - 1] > 0) {
+      wins.push({ payline: p, line, anchor, count, payout: pay[count - 1] });
+    }
+  }
+  return wins;
+}
+
+function evaluateScatters(grid) {
+  const results = [];
+  for (const trigger of config.featureTriggers) {
+    if (trigger.type !== "scatter") continue;
+    let total = 0;
+    const positions = [];
+    for (let r = 0; r < config.reelCount; r++) {
+      for (let row = 0; row < config.rowCount; row++) {
+        if (grid[r][row] === trigger.symbol) { total++; positions.push([r, row]); }
+      }
+    }
+    if (total >= trigger.count) {
+      results.push({ trigger, total, positions });
+    }
+  }
+  return results;
+}
+
+// ─────────────────────────────────────────────
+// DISPLAY LAYER — reads result data, updates DOM
+// ─────────────────────────────────────────────
+
+function buildGrid() {
+  const win = document.getElementById("reelWindow");
+  // Clear existing reels but keep SVG overlay
+  Array.from(win.querySelectorAll(".reel")).forEach(r => r.remove());
+
+  for (let i = 0; i < config.reelCount; i++) {
+    const reel = document.createElement("div");
+    reel.className = "reel";
+    reel.id = `reel-${i}`;
+    for (let row = 0; row < config.rowCount; row++) {
+      const cell = document.createElement("div");
+      cell.className = "symbol-cell";
+      cell.id = `cell-${i}-${row}`;
+      cell.textContent = "?";
+      reel.appendChild(cell);
+    }
+    win.insertBefore(reel, win.querySelector(".win-lines-overlay"));
+  }
+  updateSymbolSize();
+}
+
+function updateSymbolSize() {
+  const size = Math.max(44, Math.min(80, Math.floor(560 / (config.reelCount * 1.3))));
+  document.documentElement.style.setProperty("--symbol-size", size + "px");
+  const fontSize = Math.max(18, Math.floor(size * 0.42));
+  document.querySelectorAll(".symbol-cell").forEach(c => c.style.fontSize = fontSize + "px");
+}
+
+function renderGrid(grid) {
+  for (let i = 0; i < config.reelCount; i++) {
+    for (let row = 0; row < config.rowCount; row++) {
+      const cell = document.getElementById(`cell-${i}-${row}`);
+      if (!cell) continue;
+      const symId = grid[i][row];
+      const sym = getSymbolById(symId);
+      cell.textContent = sym ? sym.label : symId;
+      cell.className = "symbol-cell";
+      if (sym && sym.isWild) cell.classList.add("wild");
+    }
+  }
+}
+
+const WIN_LINE_COLORS = ["#4bbd8c","#c8a84b","#7b5ea7","#e05c5c","#5b9bd5","#e08c3c"];
+
+function highlightWins(wins, scatters) {
+  clearHighlights();
+  const svg = document.getElementById("winLinesOverlay");
+  const window_ = document.getElementById("reelWindow");
+  const wRect = window_.getBoundingClientRect();
+  svg.innerHTML = "";
+  svg.setAttribute("viewBox", `0 0 ${wRect.width} ${wRect.height}`);
+
+  for (let wi = 0; wi < wins.length; wi++) {
+    const win = wins[wi];
+    const color = WIN_LINE_COLORS[wi % WIN_LINE_COLORS.length];
+
+    // Highlight cells
+    for (let r = 0; r < win.count; r++) {
+      const cell = document.getElementById(`cell-${r}-${win.line[r]}`);
+      if (cell) {
+        cell.classList.add("win-highlight");
+        cell.style.setProperty("--win-color", color);
+        cell.style.boxShadow = `inset 0 0 0 2px ${color}, 0 0 12px ${color}55`;
+      }
+    }
+
+    // Draw SVG line through cell centers
+    const points = [];
+    for (let r = 0; r < win.count; r++) {
+      const cell = document.getElementById(`cell-${r}-${win.line[r]}`);
+      if (!cell) continue;
+      const cRect = cell.getBoundingClientRect();
+      const x = cRect.left - wRect.left + cRect.width / 2;
+      const y = cRect.top - wRect.top + cRect.height / 2;
+      points.push(`${x},${y}`);
+    }
+
+    if (points.length > 1) {
+      const line = document.createElementNS("http://www.w3.org/2000/svg","polyline");
+      line.setAttribute("points", points.join(" "));
+      line.setAttribute("fill","none");
+      line.setAttribute("stroke", color);
+      line.setAttribute("stroke-width","3");
+      line.setAttribute("stroke-linecap","round");
+      line.setAttribute("stroke-linejoin","round");
+      line.setAttribute("opacity","0.85");
+      svg.appendChild(line);
+
+      // Dot at each point
+      for (const pt of points) {
+        const [px, py] = pt.split(",").map(Number);
+        const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        circle.setAttribute("cx", px);
+        circle.setAttribute("cy", py);
+        circle.setAttribute("r","5");
+        circle.setAttribute("fill", color);
+        circle.setAttribute("opacity","0.9");
+        svg.appendChild(circle);
+      }
+    }
+  }
+
+  for (const sc of scatters) {
+    for (const [r, row] of sc.positions) {
+      const cell = document.getElementById(`cell-${r}-${row}`);
+      if (cell) { cell.classList.add("scatter-hit"); }
+    }
+  }
+}
+
+function clearHighlights() {
+  document.querySelectorAll(".symbol-cell").forEach(c => {
+    c.classList.remove("win-highlight", "scatter-hit");
+    c.style.boxShadow = "";
+  });
+  const svg = document.getElementById("winLinesOverlay");
+  if (svg) svg.innerHTML = "";
+}
+
+function setSpinning(reelIndex, active) {
+  for (let row = 0; row < config.rowCount; row++) {
+    const cell = document.getElementById(`cell-${reelIndex}-${row}`);
+    if (cell) {
+      if (active) {
+        cell.classList.add("spinning");
+        cell.textContent = ["★","◆","▲","●","■"][Math.floor(Math.random()*5)];
+      } else {
+        cell.classList.remove("spinning");
+      }
+    }
+  }
+}
+
+function showWinDisplay(text, isWin) {
+  const el = document.getElementById("winDisplay");
+  el.textContent = text;
+  el.classList.remove("hidden");
+  el.style.color = isWin ? "var(--win)" : "var(--text-muted)";
+}
+
+function hideWinDisplay() {
+  document.getElementById("winDisplay").classList.add("hidden");
+}
+
+function showFeatureToast(msg) {
+  const toast = document.getElementById("featureToast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2800);
+}
+
+function buildSymbolKey() {
+  const el = document.getElementById("symbolKey");
+  el.innerHTML = "";
+  for (const sym of config.symbols) {
+    const badge = document.createElement("div");
+    badge.className = "sym-badge" + (sym.isWild ? " is-wild" : sym.isScatter ? " is-scatter" : "");
+    badge.innerHTML = `<span class="sym-icon">${sym.label}</span><span>${sym.id}${sym.isWild ? " WILD" : sym.isScatter ? " SCATTER" : ""}</span>`;
+    el.appendChild(badge);
+  }
+}
+
+// ─────────────────────────────────────────────
+// FEATURE HOOKS
+// ─────────────────────────────────────────────
+
+const featureHandlers = {
+  freeSpins: (params) => {
+    showFeatureToast(params.msg || `FREE SPINS ×${params.count}!`);
+    featureCount++;
+    updateDebug();
+  },
+  bonus: (params) => {
+    showFeatureToast(params.msg || "BONUS!");
+    featureCount++;
+    updateDebug();
+  }
+};
+
+function onFeatureTrigger(trigger, params) {
+  const handler = featureHandlers[trigger.fires];
+  if (handler) handler(params);
+}
+
+// ─────────────────────────────────────────────
+// SPIN ORCHESTRATION
+// ─────────────────────────────────────────────
+
+function spin() {
+  if (isSpinning) return;
+  isSpinning = true;
+  clearHighlights();
+  hideWinDisplay();
+  document.getElementById("spinBtn").disabled = true;
+  spinTimers.forEach(t => clearTimeout(t));
+  spinTimers = [];
+
+  // Parse forced result if any
+  let forceGrid = null;
+  const forceVal = document.getElementById("forceInput").value.trim();
+  if (forceVal) {
+    try {
+      // Parse row-by-row input (slash-separated rows) and transpose to grid[reel][row]
+      const rows = forceVal.split("/").map(row =>
+        row.split(",").map(s => s.trim().toUpperCase())
+      ).slice(0, config.rowCount);
+      // Transpose: grid[reel][row]
+      forceGrid = [];
+      for (let r = 0; r < config.reelCount; r++) {
+        forceGrid.push(rows.map(row => row[r] || "A"));
+      }
+    } catch(e) { forceGrid = null; }
+  }
+
+  const result = generateResult(forceGrid);
+
+  // Start all reels spinning
+  for (let i = 0; i < config.reelCount; i++) {
+    setSpinning(i, true);
+  }
+
+  const { durationMs, staggerDelayMs, mode } = config.spinBehavior;
+
+  // Stop reels
+  for (let i = 0; i < config.reelCount; i++) {
+    const delay = mode === "staggered"
+      ? durationMs + i * staggerDelayMs
+      : durationMs;
+    const capturedI = i;
+    spinTimers.push(setTimeout(() => {
+      setSpinning(capturedI, false);
+      for (let row = 0; row < config.rowCount; row++) {
+        const cell = document.getElementById(`cell-${capturedI}-${row}`);
+        if (cell) {
+          const symId = result[capturedI][row];
+          const sym = getSymbolById(symId);
+          cell.textContent = sym ? sym.label : symId;
+          cell.className = "symbol-cell";
+          if (sym && sym.isWild) cell.classList.add("wild");
+        }
+      }
+    }, delay));
+  }
+
+  const totalDuration = mode === "staggered"
+    ? durationMs + (config.reelCount - 1) * staggerDelayMs
+    : durationMs;
+
+  spinTimers.push(setTimeout(() => {
+    currentGrid = result;
+    const wins = evaluatePaylines(result);
+    const scatters = evaluateScatters(result);
+
+    spinCount++;
+    if (wins.length > 0) winCount++;
+
+    // Feature triggers
+    for (const sc of scatters) {
+      onFeatureTrigger(sc.trigger, sc.trigger.params);
+    }
+
+    if (wins.length > 0) {
+      const total = wins.reduce((s, w) => s + w.payout, 0);
+      highlightWins(wins, scatters);
+      showWinDisplay(`WIN  ${total}×`, true);
+    } else if (scatters.length > 0) {
+      highlightWins([], scatters);
+      showWinDisplay("SCATTER!", false);
+    } else {
+      showWinDisplay("", false);
+      hideWinDisplay();
+    }
+
+    updateStats();
+    updateDebug(result, wins, scatters);
+    isSpinning = false;
+    document.getElementById("spinBtn").disabled = false;
+  }, totalDuration + 80));
+}
+
+// ─────────────────────────────────────────────
+// STATS + DEBUG
+// ─────────────────────────────────────────────
+
+function updateStats() {
+  document.getElementById("spinCounter").textContent = `Spins: ${spinCount}`;
+  const rate = spinCount > 0 ? Math.round((winCount / spinCount) * 100) : "—";
+  document.getElementById("winRate").textContent = spinCount > 0 ? `Win rate: ${rate}%` : "Win rate: —";
+}
+
+function updateDebug(result, wins, scatters) {
+  document.getElementById("dbSpins").textContent = spinCount;
+  document.getElementById("dbWins").textContent = winCount;
+  document.getElementById("dbFeatures").textContent = featureCount;
+  document.getElementById("dbConfig").textContent = config.name;
+  if (result) {
+    const data = {
+      grid: result,
+      wins: wins ? wins.map(w => ({ payline: w.payline, symbol: w.anchor, count: w.count, payout: w.payout })) : [],
+      scatters: scatters ? scatters.map(s => ({ symbol: s.trigger.symbol, count: s.total, fires: s.trigger.fires })) : []
+    };
+    document.getElementById("debugResult").textContent = JSON.stringify(data, null, 2);
+  }
+}
+
+function toggleDebug() {
+  const panel = document.getElementById("debugPanel");
+  const arrow = document.getElementById("debugArrow");
+  const open = panel.classList.toggle("open");
+  arrow.textContent = open ? "▼" : "▶";
+}
+
+// ─────────────────────────────────────────────
+// CONFIG LOADING
+// ─────────────────────────────────────────────
+
+function loadConfig() {
+  const key = document.getElementById("configSelect").value;
+  config = CONFIGS[key];
+  spinCount = 0; winCount = 0; featureCount = 0;
+  currentGrid = [];
+  document.getElementById("gameTitle").textContent = config.name;
+  document.getElementById("dbConfig").textContent = config.name;
+  buildGrid();
+  buildSymbolKey();
+  updateStats();
+  updateDebug();
+  // Initial render with random symbols
+  const initial = generateResult();
+  currentGrid = initial;
+  renderGrid(initial);
+}
+
+
+// ─────────────────────────────────────────────
+// SIMULATION
+// ─────────────────────────────────────────────
+
+function runSimulation(n) {
+  let wins = 0;
+  let featureFires = 0;
+  const symbolWinCounts = {};
+  const paylineHits = {};
+
+  for (let i = 0; i < n; i++) {
+    const grid = generateResult();
+    const spinWins = evaluatePaylines(grid);
+    const spinScatters = evaluateScatters(grid);
+
+    if (spinWins.length > 0) {
+      wins++;
+      for (const w of spinWins) {
+        symbolWinCounts[w.anchor] = (symbolWinCounts[w.anchor] || 0) + 1;
+        paylineHits[w.payline] = (paylineHits[w.payline] || 0) + 1;
+      }
+    }
+    if (spinScatters.length > 0) featureFires++;
+  }
+
+  const winRate = ((wins / n) * 100).toFixed(1);
+  const featureRate = ((featureFires / n) * 100).toFixed(2);
+
+  // Sort symbols by win count
+  const sortedSymbols = Object.entries(symbolWinCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, count]) => {
+      const sym = getSymbolById(id);
+      return sym.label + ' ' + id + ': ' + count + ' (' + ((count/n)*100).toFixed(1) + '%)';
+    });
+
+  // Sort paylines by hit count
+  const sortedPaylines = Object.entries(paylineHits)
+    .sort((a, b) => b[1] - a[1])
+    .map(([p, count]) => 'Line ' + (parseInt(p)+1) + ': ' + count + ' hits (' + ((count/n)*100).toFixed(1) + '%)');
+
+  const el = document.getElementById('simResults');
+  el.innerHTML = [
+    '<span class="sim-label">Spins simulated:</span> <span class="sim-stat">' + n.toLocaleString() + '</span>',
+    '<span class="sim-label">Winning spins:</span> <span class="sim-stat">' + wins.toLocaleString() + ' (' + winRate + '%)</span>',
+    '<span class="sim-label">Feature triggers:</span> <span class="sim-stat">' + featureFires.toLocaleString() + ' (' + featureRate + '%)</span>',
+    '',
+    '<span class="sim-label">Wins by symbol:</span>',
+    ...sortedSymbols.map(s => '  ' + s),
+    '',
+    '<span class="sim-label">Hits by payline:</span>',
+    ...sortedPaylines.map(s => '  ' + s),
+  ].join('<br>');
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadConfig();
+</script>
+</body>
+</html>
